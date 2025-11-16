@@ -142,7 +142,9 @@
                 </form>
             </div>
             <div class="text-center text-black">
-                <h2 class="display-4 fw-bolder">Customer is in Cluster : {{context}} </h2>
+                {% if context != "Rendering" %}
+                    <h2 class="display-4 fw-bolder" style="color: green; margin-top: 30px;">Customer is in Cluster : {{context}} </h2>
+                {% endif %}
             </div>
         </div>
     </section>

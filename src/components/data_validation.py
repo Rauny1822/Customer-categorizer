@@ -2,8 +2,6 @@ import json
 import sys
 from typing import Tuple, Union
 import pandas as pd
-from evidently.model_profile import Profile
-from evidently.model_profile.sections import DataDriftProfileSection
 from pandas import DataFrame
 
 from src.entity.artifact_entity import DataIngestionArtifact, DataValidationArtifact
@@ -97,25 +95,32 @@ class DataValidation:
         Revisions   :   moved setup to cloud
         """
         try:
-            data_drift_profile = Profile(sections=[DataDriftProfileSection()])
-
-            data_drift_profile.calculate(reference_df, current_df)
-
-            report = data_drift_profile.json()
-
-            json_report = json.loads(report)
-            write_yaml_file(file_path=self.data_validation_config.drift_report_file_path, content=json_report)
-
-
-            n_features = json_report["data_drift"]["data"]["metrics"]["n_features"]
-
-            n_drifted_features = json_report["data_drift"]["data"]["metrics"]["n_drifted_features"]
+            # Simplified drift detection - comparing basic statistics
+            # For production use, consider upgrading evidently or implementing custom drift detection
             
-            logging.info(f"{n_drifted_features}/{n_features} drift detected.")
+            drift_detected = False
+            
+            # Check if shapes match
+            if reference_df.shape[0] == 0 or current_df.shape[0] == 0:
+                drift_detected = True
+            else:
+                # Compare numeric columns statistics
+                numeric_cols = reference_df.select_dtypes(include=['number']).columns
+                for col in numeric_cols:
+                    ref_mean = reference_df[col].mean()
+                    curr_mean = current_df[col].mean()
+                    # Simple threshold-based drift detection (20% change)
+                    if abs(ref_mean - curr_mean) / (abs(ref_mean) + 1e-10) > 0.2:
+                        drift_detected = True
+                        break
+            
+            logging.info(f"Dataset drift detected: {drift_detected}")
+            
+            # Write empty drift report for compatibility
+            drift_report = {"dataset_drift": drift_detected, "message": "Drift detection using statistical comparison"}
+            write_yaml_file(file_path=self.data_validation_config.drift_report_file_path, content=drift_report)
 
-            drift_status = json_report["data_drift"]["data"]["metrics"]["dataset_drift"]
-
-            return drift_status
+            return drift_detected
         
         except Exception as e:
             raise CustomerException(e, sys) from e

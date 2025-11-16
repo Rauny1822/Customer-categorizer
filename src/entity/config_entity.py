@@ -127,7 +127,3 @@ class Prediction_config:
         self.prediction_schema = utils.read_yaml_file(PRED_SCHEMA_FILE_PATH)
     def get_prediction_schema(self):
         return self.__dict__
-    
-
-
-        return self.__dict__
