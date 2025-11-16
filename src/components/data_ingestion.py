@@ -66,11 +66,13 @@ class DataIngestion:
         """
         Method Name :   export_data_into_feature_store
         Description :   This method reads data from mongodb and saves it into artifacts. 
+                        Falls back to local CSV file if MongoDB is unavailable.
         
         Output      :   dataset is returned as a DataFrame
         On Failure  :   Write an exception log and then raise an exception
         
-        Version     :   0.1
+        Version     :   0.2
+        Revisions   :   Added fallback to local CSV file
        
         """
         try:
@@ -89,7 +91,23 @@ class DataIngestion:
             return customer_dataframe
 
         except Exception as e:
-            raise CustomerException(e,sys)
+            logging.warning(f"MongoDB unavailable, falling back to local CSV file: {e}")
+            try:
+                import pandas as pd
+                csv_path = "notebooks/marketing_campaign.csv"
+                if os.path.exists(csv_path):
+                    logging.info(f"Reading from local CSV: {csv_path}")
+                    customer_dataframe = pd.read_csv(csv_path, sep='\t')
+                    logging.info(f"Loaded {len(customer_dataframe)} rows from local CSV")
+                    feature_store_file_path = self.data_ingestion_config.feature_store_file_path
+                    dir_path = os.path.dirname(feature_store_file_path)
+                    os.makedirs(dir_path, exist_ok=True)
+                    customer_dataframe.to_csv(feature_store_file_path, index=False, header=True)
+                    return customer_dataframe
+                else:
+                    raise Exception(f"Local CSV file not found at {csv_path}")
+            except Exception as fallback_e:
+                raise CustomerException(fallback_e, sys)
 
     def initiate_data_ingestion(self) -> DataIngestionArtifact:
         """
